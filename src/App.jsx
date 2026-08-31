@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Wallet, TrendingUp, TrendingDown, PlusCircle, Trash2, 
   ArrowRightLeft, Calendar, Pencil, Check, Loader2,
-  Landmark, Banknote
+  Landmark, Banknote, CreditCard
 } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import { 
@@ -29,15 +29,15 @@ const db = getFirestore(app);
 export default function App() {
   const [transactions, setTransactions] = useState([]);
   
-  // Saldi iniziali separati
-  const [initialBalances, setInitialBalances] = useState({ banca: 0, contante: 0 });
+  // Saldi iniziali separati per i 3 conti
+  const [initialBalances, setInitialBalances] = useState({ banca: 0, contante: 0, paypal: 0 });
   const [isEditingBalance, setIsEditingBalance] = useState(false);
-  const [tempBalances, setTempBalances] = useState({ banca: '', contante: '' });
+  const [tempBalances, setTempBalances] = useState({ banca: '', contante: '', paypal: '' });
   
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [type, setType] = useState('entrata');
-  const [method, setMethod] = useState('banca'); // 'banca' o 'contante'
+  const [method, setMethod] = useState('banca'); // 'banca', 'contante' o 'paypal'
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   
   const [selectedMonth, setSelectedMonth] = useState('all');
@@ -49,10 +49,10 @@ export default function App() {
     const unsubscribeBalance = onSnapshot(balanceRef, (doc) => {
       if (doc.exists()) {
         const data = doc.data();
-        // Recupera i vecchi dati se presenti, altrimenti usa i nuovi campi separati
         setInitialBalances({
           banca: data.banca !== undefined ? data.banca : (data.initialBalance || 0),
-          contante: data.contante || 0
+          contante: data.contante || 0,
+          paypal: data.paypal || 0
         });
       }
     });
@@ -93,19 +93,23 @@ export default function App() {
     });
   }, [transactions, selectedMonth]);
 
-  const { totalIncome, totalExpense, bankBalance, cashBalance, globalBalance } = useMemo(() => {
-    let bankInc = 0, bankExp = 0, cashInc = 0, cashExp = 0;
+  const { totalIncome, totalExpense, bankBalance, cashBalance, paypalBalance, globalBalance } = useMemo(() => {
+    let bankInc = 0, bankExp = 0, cashInc = 0, cashExp = 0, paypalInc = 0, paypalExp = 0;
     
     transactions.forEach(t => {
-      const m = t.method === 'contante' ? 'contante' : 'banca'; // Fallback per vecchie transazioni
+      const m = t.method || 'banca'; // Default a banca per vecchie transazioni senza metodo
+      
       if (t.type === 'entrata') {
-        if (m === 'banca') bankInc += t.amount; else cashInc += t.amount;
+        if (m === 'banca') bankInc += t.amount;
+        else if (m === 'contante') cashInc += t.amount;
+        else if (m === 'paypal') paypalInc += t.amount;
       } else {
-        if (m === 'banca') bankExp += t.amount; else cashExp += t.amount;
+        if (m === 'banca') bankExp += t.amount;
+        else if (m === 'contante') cashExp += t.amount;
+        else if (m === 'paypal') paypalExp += t.amount;
       }
     });
 
-    // Calcoli per i filtri visivi (Entrate/Uscite del mese)
     let filteredInc = 0, filteredExp = 0;
     filteredTransactions.forEach(t => {
       if (t.type === 'entrata') filteredInc += t.amount;
@@ -114,23 +118,27 @@ export default function App() {
 
     const currentBank = initialBalances.banca + bankInc - bankExp;
     const currentCash = initialBalances.contante + cashInc - cashExp;
+    const currentPaypal = initialBalances.paypal + paypalInc - paypalExp;
 
     return {
       totalIncome: filteredInc,
       totalExpense: filteredExp,
       bankBalance: currentBank,
       cashBalance: currentCash,
-      globalBalance: currentBank + currentCash
+      paypalBalance: currentPaypal,
+      globalBalance: currentBank + currentCash + currentPaypal
     };
   }, [transactions, filteredTransactions, initialBalances]);
 
   const handleSaveInitialBalance = async () => {
     const b = parseFloat(tempBalances.banca);
     const c = parseFloat(tempBalances.contante);
+    const p = parseFloat(tempBalances.paypal);
     
     await setDoc(doc(db, 'settings', 'globalBalance'), { 
       banca: !isNaN(b) ? b : 0,
-      contante: !isNaN(c) ? c : 0
+      contante: !isNaN(c) ? c : 0,
+      paypal: !isNaN(p) ? p : 0
     }, { merge: true });
     
     setIsEditingBalance(false);
@@ -202,7 +210,7 @@ export default function App() {
         </header>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Card Saldo con divisione Conto/Contanti */}
+          {/* Card Saldo con divisione Conto/Contanti/PayPal */}
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 relative overflow-hidden group md:col-span-1">
             <div className="flex justify-between items-center mb-2 relative z-10">
               <p className="text-sm font-medium text-slate-500">Patrimonio Netto</p>
@@ -211,7 +219,8 @@ export default function App() {
                   onClick={() => {
                     setTempBalances({ 
                       banca: initialBalances.banca.toString(), 
-                      contante: initialBalances.contante.toString() 
+                      contante: initialBalances.contante.toString(),
+                      paypal: initialBalances.paypal.toString()
                     });
                     setIsEditingBalance(true);
                   }}
@@ -226,11 +235,15 @@ export default function App() {
               <div className="space-y-2 mt-2 relative z-10">
                 <div className="flex items-center gap-2">
                   <Landmark size={16} className="text-slate-400" />
-                  <input type="number" value={tempBalances.banca} onChange={(e) => setTempBalances({...tempBalances, banca: e.target.value})} placeholder="Banca inziale" className="w-full px-2 py-1 text-sm bg-slate-50 border border-slate-200 rounded focus:ring-1 focus:ring-blue-500" />
+                  <input type="number" value={tempBalances.banca} onChange={(e) => setTempBalances({...tempBalances, banca: e.target.value})} placeholder="Banca" className="w-full px-2 py-1 text-sm bg-slate-50 border border-slate-200 rounded focus:ring-1 focus:ring-blue-500" />
                 </div>
                 <div className="flex items-center gap-2">
                   <Banknote size={16} className="text-slate-400" />
-                  <input type="number" value={tempBalances.contante} onChange={(e) => setTempBalances({...tempBalances, contante: e.target.value})} placeholder="Contante iniziale" className="w-full px-2 py-1 text-sm bg-slate-50 border border-slate-200 rounded focus:ring-1 focus:ring-blue-500" onKeyDown={(e) => e.key === 'Enter' && handleSaveInitialBalance()} />
+                  <input type="number" value={tempBalances.contante} onChange={(e) => setTempBalances({...tempBalances, contante: e.target.value})} placeholder="Contante" className="w-full px-2 py-1 text-sm bg-slate-50 border border-slate-200 rounded focus:ring-1 focus:ring-blue-500" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <CreditCard size={16} className="text-slate-400" />
+                  <input type="number" value={tempBalances.paypal} onChange={(e) => setTempBalances({...tempBalances, paypal: e.target.value})} placeholder="PayPal" className="w-full px-2 py-1 text-sm bg-slate-50 border border-slate-200 rounded focus:ring-1 focus:ring-blue-500" onKeyDown={(e) => e.key === 'Enter' && handleSaveInitialBalance()} />
                 </div>
                 <button onClick={handleSaveInitialBalance} className="w-full py-1 mt-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 flex justify-center items-center gap-1">
                   <Check size={16} /> Salva
@@ -238,7 +251,7 @@ export default function App() {
               </div>
             ) : (
               <div className="relative z-10">
-                <h2 className={`text-4xl font-bold mb-3 ${globalBalance >= 0 ? 'text-slate-900' : 'text-red-600'}`}>
+                <h2 className={`text-3xl font-bold mb-3 ${globalBalance >= 0 ? 'text-slate-900' : 'text-red-600'}`}>
                   {formatCurrency(globalBalance)}
                 </h2>
                 <div className="flex flex-col gap-1 border-t border-slate-100 pt-3">
@@ -249,6 +262,10 @@ export default function App() {
                   <div className="flex justify-between items-center text-sm">
                     <span className="flex items-center gap-1 text-slate-500"><Banknote size={14}/> Contanti</span>
                     <span className="font-semibold text-slate-700">{formatCurrency(cashBalance)}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="flex items-center gap-1 text-slate-500"><CreditCard size={14}/> PayPal</span>
+                    <span className="font-semibold text-slate-700">{formatCurrency(paypalBalance)}</span>
                   </div>
                 </div>
               </div>
@@ -299,15 +316,19 @@ export default function App() {
                   </button>
                 </div>
 
-                {/* Switch Conto Corrente / Contanti */}
+                {/* Switch Conto / Contanti / PayPal */}
                 <div className="flex p-1 bg-slate-100 rounded-lg">
                   <button type="button" onClick={() => setMethod('banca')}
-                    className={`flex-1 flex items-center justify-center gap-1 py-2 text-sm font-medium rounded-md transition-all ${method === 'banca' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
-                    <Landmark size={16}/> Banca
+                    className={`flex-1 flex items-center justify-center gap-1 py-1.5 text-xs sm:text-sm font-medium rounded-md transition-all ${method === 'banca' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+                    <Landmark size={14}/> Banca
                   </button>
                   <button type="button" onClick={() => setMethod('contante')}
-                    className={`flex-1 flex items-center justify-center gap-1 py-2 text-sm font-medium rounded-md transition-all ${method === 'contante' ? 'bg-white text-orange-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
-                    <Banknote size={16}/> Contanti
+                    className={`flex-1 flex items-center justify-center gap-1 py-1.5 text-xs sm:text-sm font-medium rounded-md transition-all ${method === 'contante' ? 'bg-white text-orange-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+                    <Banknote size={14}/> Contanti
+                  </button>
+                  <button type="button" onClick={() => setMethod('paypal')}
+                    className={`flex-1 flex items-center justify-center gap-1 py-1.5 text-xs sm:text-sm font-medium rounded-md transition-all ${method === 'paypal' ? 'bg-white text-sky-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+                    <CreditCard size={14}/> PayPal
                   </button>
                 </div>
 
@@ -333,7 +354,7 @@ export default function App() {
 
                 <button type="submit" className="w-full mt-2 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg shadow-sm transition-colors flex items-center justify-center gap-2">
                   <PlusCircle size={20} />
-                  Aggiungi {type === 'entrata' ? 'Entrata' : 'Uscita'} {method === 'banca' ? 'in Banca' : 'in Contanti'}
+                  Aggiungi {type === 'entrata' ? 'Entrata' : 'Uscita'} 
                 </button>
               </form>
             </div>
@@ -355,7 +376,22 @@ export default function App() {
               ) : (
                 <div className="space-y-3">
                   {filteredTransactions.map((transaction) => {
-                    const isBank = transaction.method !== 'contante'; // Default banca
+                    const met = transaction.method || 'banca';
+                    
+                    let MethodIcon = Landmark;
+                    let methodStyle = "bg-blue-50 text-blue-600";
+                    let methodLabel = "Banca";
+                    
+                    if (met === 'contante') {
+                      MethodIcon = Banknote;
+                      methodStyle = "bg-orange-50 text-orange-600";
+                      methodLabel = "Contanti";
+                    } else if (met === 'paypal') {
+                      MethodIcon = CreditCard;
+                      methodStyle = "bg-sky-50 text-sky-600";
+                      methodLabel = "PayPal";
+                    }
+
                     return (
                       <div key={transaction.id} className="group flex items-center justify-between p-4 rounded-xl border border-slate-100 hover:border-slate-200 hover:bg-slate-50 transition-all">
                         <div className="flex items-center gap-4">
@@ -369,9 +405,9 @@ export default function App() {
                                 <Calendar size={12} />
                                 {new Date(transaction.date).toLocaleDateString('it-IT', { year: 'numeric', month: 'short', day: 'numeric' })}
                               </span>
-                              <span className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md ${isBank ? 'bg-blue-50 text-blue-600' : 'bg-orange-50 text-orange-600'}`}>
-                                {isBank ? <Landmark size={10}/> : <Banknote size={10}/>}
-                                {isBank ? 'Banca' : 'Contanti'}
+                              <span className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md ${methodStyle}`}>
+                                <MethodIcon size={10}/>
+                                {methodLabel}
                               </span>
                             </div>
                           </div>
