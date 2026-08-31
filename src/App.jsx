@@ -1,4 +1,4 @@
-npm run buildimport React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import {
   Wallet,
   TrendingUp,
