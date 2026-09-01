@@ -9,7 +9,7 @@ import {
   getFirestore, collection, addDoc, deleteDoc, doc, 
   onSnapshot, query, orderBy, setDoc 
 } from 'firebase/firestore';
-import { getAuth, signInWithRedirect, GoogleAuthProvider, signOut, onAuthStateChanged } from 'firebase/auth';
+import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from 'firebase/auth';
 
 // =========================================================================
 // 1. INSERISCI QUI I TUOI DATI FIREBASE
@@ -88,7 +88,7 @@ export default function App() {
     };
   }, [user]);
 
-  const handleLogin = () => signInWithRedirect(auth, googleProvider);
+  const handleLogin = () => signInWithPopup(auth, googleProvider);
   const handleLogout = () => signOut(auth);
 
   const availableMonths = useMemo(() => {
