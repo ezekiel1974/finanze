@@ -195,7 +195,7 @@ export default function App() {
             <Wallet size={32} />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Le mie Finanze</h1>
+            <h1 className="text-2xl font-bold text-slate-900">Visaria</h1>
             <p className="text-slate-500 mt-2">Accedi per gestire il tuo portafoglio privato in totale sicurezza.</p>
           </div>
           <button onClick={handleLogin} className="w-full flex items-center justify-center gap-3 bg-white border border-slate-300 text-slate-700 py-3 px-4 rounded-xl hover:bg-slate-50 font-medium transition-all shadow-sm">
@@ -224,7 +224,7 @@ export default function App() {
             <div className="flex items-center gap-3">
               <div className="p-3 bg-blue-600 rounded-lg text-white shadow-md"><Wallet size={28} /></div>
               <div>
-                <h1 className="text-3xl font-bold text-slate-900">Le mie Finanze</h1>
+                <h1 className="text-3xl font-bold text-slate-900">Visaria</h1>
                 <p className="text-slate-500 text-sm">Privato e Sicuro</p>
               </div>
             </div>

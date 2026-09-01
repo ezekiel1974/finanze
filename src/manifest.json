@@ -1,0 +1,21 @@
+{
+    "name": "Visaria",
+    "short_name": "Visaria",
+    "display": "standalone",
+    "start_url": "/",
+    "background_color": "#f1f5f9",
+    "theme_color": "#2563eb",
+    "icons": [
+      {
+        "src": "/favicon.png",
+        "sizes": "192x192",
+        "type": "image/png"
+      },
+      {
+        "src": "/favicon.png",
+        "sizes": "512x512",
+        "type": "image/png"
+      }
+    ]
+  }
+  
