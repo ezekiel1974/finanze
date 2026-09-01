@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Wallet, TrendingUp, TrendingDown, PlusCircle, Trash2, 
   ArrowRightLeft, Calendar, Pencil, Check, Loader2,
-  Landmark, Banknote, CreditCard
+  Landmark, Banknote, CreditCard, Eye, EyeOff
 } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import { 
@@ -17,7 +17,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyCXB3e0Sm0WJwJdVMgLdaGtCZfwMHDVd48",
   authDomain: "le-mie-finanze-e8ce4.firebaseapp.com",
   projectId: "le-mie-finanze-e8ce4",
-  storageBucket: "le-mie-finanze-e8ce4.firebasestorage.app",
+  storageBucket: "le-mie-finanze-e8ce4.firebasestorage.app"",
   messagingSenderId: "365896929014",
   appId: "1:365896929014:web:057fdc598400d6990766d7"
 };
@@ -33,6 +33,9 @@ export default function App() {
   const [initialBalances, setInitialBalances] = useState({ banca: 0, contante: 0, paypal: 0 });
   const [isEditingBalance, setIsEditingBalance] = useState(false);
   const [tempBalances, setTempBalances] = useState({ banca: '', contante: '', paypal: '' });
+  
+  // Stato per oscurare/mostrare i saldi
+  const [showBalances, setShowBalances] = useState(false);
   
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
@@ -97,7 +100,7 @@ export default function App() {
     let bankInc = 0, bankExp = 0, cashInc = 0, cashExp = 0, paypalInc = 0, paypalExp = 0;
     
     transactions.forEach(t => {
-      const m = t.method || 'banca'; // Default a banca per vecchie transazioni senza metodo
+      const m = t.method || 'banca'; 
       
       if (t.type === 'entrata') {
         if (m === 'banca') bankInc += t.amount;
@@ -173,6 +176,11 @@ export default function App() {
     return new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(value);
   };
 
+  // Funzione helper per oscurare i saldi se necessario
+  const renderBalance = (value) => {
+    return showBalances ? formatCurrency(value) : '€ ****';
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center text-slate-500">
@@ -210,10 +218,20 @@ export default function App() {
         </header>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Card Saldo con divisione Conto/Contanti/PayPal */}
+          {/* Card Patrimonio Netto */}
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 relative overflow-hidden group md:col-span-1">
             <div className="flex justify-between items-center mb-2 relative z-10">
-              <p className="text-sm font-medium text-slate-500">Patrimonio Netto</p>
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-medium text-slate-500">Patrimonio Netto</p>
+                <button 
+                  onClick={() => setShowBalances(!showBalances)} 
+                  className="text-slate-400 hover:text-slate-600 transition-colors focus:outline-none"
+                  title={showBalances ? "Nascondi saldi" : "Mostra saldi"}
+                >
+                  {showBalances ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+              
               {!isEditingBalance && (
                 <button 
                   onClick={() => {
@@ -252,20 +270,20 @@ export default function App() {
             ) : (
               <div className="relative z-10">
                 <h2 className={`text-3xl font-bold mb-3 ${globalBalance >= 0 ? 'text-slate-900' : 'text-red-600'}`}>
-                  {formatCurrency(globalBalance)}
+                  {renderBalance(globalBalance)}
                 </h2>
                 <div className="flex flex-col gap-1 border-t border-slate-100 pt-3">
                   <div className="flex justify-between items-center text-sm">
                     <span className="flex items-center gap-1 text-slate-500"><Landmark size={14}/> Banca</span>
-                    <span className="font-semibold text-slate-700">{formatCurrency(bankBalance)}</span>
+                    <span className="font-semibold text-slate-700">{renderBalance(bankBalance)}</span>
                   </div>
                   <div className="flex justify-between items-center text-sm">
                     <span className="flex items-center gap-1 text-slate-500"><Banknote size={14}/> Contanti</span>
-                    <span className="font-semibold text-slate-700">{formatCurrency(cashBalance)}</span>
+                    <span className="font-semibold text-slate-700">{renderBalance(cashBalance)}</span>
                   </div>
                   <div className="flex justify-between items-center text-sm">
                     <span className="flex items-center gap-1 text-slate-500"><CreditCard size={14}/> PayPal</span>
-                    <span className="font-semibold text-slate-700">{formatCurrency(paypalBalance)}</span>
+                    <span className="font-semibold text-slate-700">{renderBalance(paypalBalance)}</span>
                   </div>
                 </div>
               </div>
@@ -280,7 +298,7 @@ export default function App() {
                 {selectedMonth === 'all' ? 'Totale Entrate' : `Entrate ${selectedMonth}`}
               </p>
             </div>
-            <h3 className="text-2xl font-bold text-emerald-600">{formatCurrency(totalIncome)}</h3>
+            <h3 className="text-2xl font-bold text-emerald-600">{renderBalance(totalIncome)}</h3>
           </div>
 
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 relative overflow-hidden">
@@ -291,7 +309,7 @@ export default function App() {
                 {selectedMonth === 'all' ? 'Totale Uscite' : `Uscite ${selectedMonth}`}
               </p>
             </div>
-            <h3 className="text-2xl font-bold text-rose-600">{formatCurrency(totalExpense)}</h3>
+            <h3 className="text-2xl font-bold text-rose-600">{renderBalance(totalExpense)}</h3>
           </div>
         </div>
 
@@ -415,7 +433,7 @@ export default function App() {
                         
                         <div className="flex items-center gap-4">
                           <span className={`font-bold whitespace-nowrap ${transaction.type === 'entrata' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                            {transaction.type === 'entrata' ? '+' : '-'} {formatCurrency(transaction.amount)}
+                            {transaction.type === 'entrata' ? '+' : '-'} {renderBalance(transaction.amount)}
                           </span>
                           <button onClick={() => handleDelete(transaction.id)}
                             className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg md:opacity-0 md:group-hover:opacity-100 transition-all focus:opacity-100" title="Elimina">
