@@ -17,7 +17,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyCXB3e0Sm0WJwJdVMgLdaGtCZfwMHDVd48",
   authDomain: "le-mie-finanze-e8ce4.firebaseapp.com",
   projectId: "le-mie-finanze-e8ce4",
-  storageBucket: "le-mie-finanze-e8ce4.firebasestorage.app"",
+  storageBucket: "le-mie-finanze-e8ce4.firebasestorage.app",
   messagingSenderId: "365896929014",
   appId: "1:365896929014:web:057fdc598400d6990766d7"
 };
